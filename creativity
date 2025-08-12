@@ -1,0 +1,102 @@
+import os
+import zipfile
+
+project_files = {
+    'myblog/app.py': """
+from flask import Flask, render_template, abort
+import os
+import markdown
+
+app = Flask(__name__)
+POSTS_DIR = 'posts'
+
+def get_posts():
+    posts = []
+    for filename in os.listdir(POSTS_DIR):
+        if filename.endswith('.md'):
+            path = os.path.join(POSTS_DIR, filename)
+            with open(path, 'r') as f:
+                content = f.read()
+                html = markdown.markdown(content)
+                title = content.split('\\n')[0].replace('# ', '')
+                slug = filename.replace('.md', '')
+                posts.append({'title': title, 'slug': slug, 'content': html})
+    return posts[::-1]
+
+@app.route('/')
+def index():
+    posts = get_posts()
+    return render_template('index.html', posts=posts)
+
+@app.route('/post/<slug>')
+def post(slug):
+    path = os.path.join(POSTS_DIR, f'{slug}.md')
+    if not os.path.exists(path):
+        abort(404)
+    with open(path, 'r') as f:
+        content = f.read()
+        html = markdown.markdown(content)
+        title = content.split('\\n')[0].replace('# ', '')
+    return render_template('post.html', title=title, content=html)
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
+""",
+
+    'myblog/requirements.txt': "flask\nmarkdown\n",
+
+    'myblog/posts/first-post.md': "# Welcome to My Blog\n\nThis is the very first post on your new blog!\n\nYou can write posts in Markdown. Each post should go into the `posts/` folder with a `.md` extension.\n",
+
+    'myblog/static/style.css': "body { font-family: sans-serif; max-width: 700px; margin: auto; padding: 1em; }\na { color: blue; text-decoration: none; }\na:hover { text-decoration: underline; }\nheader, footer { text-align: center; margin: 2em 0; }\n",
+
+    'myblog/templates/layout.html': """
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}My Blog{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header><h1><a href="/">My Blog</a></h1></header>
+  <main>{% block content %}{% endblock %}</main>
+  <footer><p>© 2025 Your Name</p></footer>
+</body>
+</html>
+""",
+
+    'myblog/templates/index.html': """
+{% extends "layout.html" %}
+{% block title %}Home - My Blog{% endblock %}
+{% block content %}
+  {% for post in posts %}
+    <article>
+      <h2><a href="/post/{{ post.slug }}">{{ post.title }}</a></h2>
+    </article>
+  {% endfor %}
+{% endblock %}
+""",
+
+    'myblog/templates/post.html': """
+{% extends "layout.html" %}
+{% block title %}{{ title }} - My Blog{% endblock %}
+{% block content %}
+<article>
+  <h2>{{ title }}</h2>
+  <div>{{ content|safe }}</div>
+</article>
+{% endblock %}
+"""
+}
+
+# Create the zip
+zip_filename = "myblog.zip"
+with zipfile.ZipFile(zip_filename, 'w') as zipf:
+    for filepath, content in project_files.items():
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, 'w') as f:
+            f.write(content.strip())
+        zipf.write(filepath)
+
+print(f"ZIP file created: {zip_filename}")
