@@ -1,8 +1,89 @@
-cd myblog  # your project folder
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/your-username/my-flask-blog.git
-git push -u origin main
+myblog/
+├── app.py
+├── templates/
+│   ├── layout.html
+│   ├── index.html
+│   └── post.html
+├── static/
+│   └── style.css
+├── posts/
+│   ├── first-post.md
+│   └── second-post.md
+└── requirements.txt
+from flask import Flask, render_template, abort
+import os
+import markdown
 
+app = Flask(__name__)
+POSTS_DIR = 'posts'
+
+def get_posts():
+    posts = []
+    for filename in os.listdir(POSTS_DIR):
+        if filename.endswith('.md'):
+            path = os.path.join(POSTS_DIR, filename)
+            with open(path, 'r') as f:
+                content = f.read()
+                html = markdown.markdown(content)
+                title = content.split('\n')[0].replace('# ', '')
+                slug = filename.replace('.md', '')
+                posts.append({'title': title, 'slug': slug, 'content': html})
+    return posts[::-1]  # Newest first
+
+@app.route('/')
+def index():
+    posts = get_posts()
+    return render_template('index.html', posts=posts)
+
+@app.route('/post/<slug>')
+def post(slug):
+    path = os.path.join(POSTS_DIR, f'{slug}.md')
+    if not os.path.exists(path):
+        abort(404)
+    with open(path, 'r') as f:
+        content = f.read()
+        html = markdown.markdown(content)
+        title = content.split('\n')[0].replace('# ', '')
+    return render_template('post.html', title=title, content=html)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+# My First Blog Post
+
+Welcome to my blog! This is my first post. I'll be writing about [your niche] and sharing tips, insights, and tutorials every week.
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}My Blog{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header><h1><a href="/">My Blog</a></h1></header>
+  <main>{% block content %}{% endblock %}</main>
+  <footer><p>© 2025 Your Name</p></footer>
+</body>
+</html>
+{% extends "layout.html" %}
+{% block title %}Home - My Blog{% endblock %}
+{% block content %}
+  {% for post in posts %}
+    <article>
+      <h2><a href="/post/{{ post.slug }}">{{ post.title }}</a></h2>
+    </article>
+  {% endfor %}
+{% endblock %}
+{% extends "layout.html" %}
+{% block title %}{{ title }} - My Blog{% endblock %}
+{% block content %}
+<article>
+  <h2>{{ title }}</h2>
+  <div>{{ content|safe }}</div>
+</article>
+{% endblock %}
+body { font-family: sans-serif; max-width: 700px; margin: auto; padding: 1em; }
+a { color: blue; text-decoration: none; }
+a:hover { text-decoration: underline; }
+header, footer { text-align: center; margin: 2em 0; }
+flask
+markdown
